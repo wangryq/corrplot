@@ -1,0 +1,61 @@
+#install.packages("corrplot")#安装包
+rm(list = ls())
+setwd("/data/nas1/yangjiajin/project/JNZK-209-new/07.correlation/")
+library("ggcorrplot")
+
+library("corrplot")#加载包
+library("ggstatsplot") 
+diff <- read.table("../00.data/expr_GSE12649.txt",header = T,sep = "\t")       #原始数据（大）
+diff <- transform(diff,id = rownames(diff))
+hub <- read.table("hub.txt",header = T,sep = "\t")     #想要提取的数据框（小）
+#head(diff)
+
+df1 <- data.frame()
+df2 <- data.frame()       #最终提取生成的数据框
+
+for(i in hub$id){
+  df1 = diff[which(diff$id == i),]
+  df2 <- rbind(df2,df1)
+}
+   
+# rownames(df2)<-df2[,1]    #将第一列变为行名
+# df2<-df2[,-1]
+df2 <- subset(df2,select = -id)
+
+za <- t(df2)
+zb <- as.matrix(za)#转化为矩阵
+#zb
+qc <- cor(zb,method="spearman")#求相关系数
+
+res = cor.mtest(zb,conf.level = 0.95)
+p.mat = res$p
+
+write.table(qc,file="02.Correlation.txt",sep="\t",quote=F,row.names = T,col.names = T)
+write.table(p.mat,file="03.salience.txt",sep="\t",quote=F,row.names = T,col.names = T)
+
+qc[qc <= 0.31 ] = 0   
+
+
+col3 <- colorRampPalette(c("blue", "grey","red"))#设置颜色，颜色的方向根据位置顺序调整
+corrplot(qc, order = "hclust",type = "lower" ,addrect = 2, col = col3(20))
+corrplot(qc, type = "lower", tl.cex=1.5,col = col3(20),
+         tl.col = "black")    #tl.cex=.9设置基因名大小
+corrplot(qc, add = TRUE, type = "upper", method = "number",
+         col = col3(20), diag = FALSE, tl.pos = "n", cl.pos = "n", number.cex = 1.5)#画图， number.cex =0.3调整相关系数字体大小
+corrplot(qc, add = TRUE, type = "lower", 
+         p.mat = res$p, sig.level = c(.001, .01, .05),insig = "label_sig",pch.cex = 2, pch.col = "white",
+         col = col3(20), diag = FALSE, tl.pos = "n", cl.pos = "n", number.cex = 1.5)
+
+dev.off()
+
+###没有显著性的不显示
+col3 <- colorRampPalette(c("blue", "grey","red"))#设置颜色，颜色的方向根据位置顺序调整
+corrplot(qc, type="lower", addrect = 2, col = col3(20),tl.col = "black",tl.cex=2,tl.pos = "tp",
+         p.mat = res$p, sig.level = 0.05, insig = "blank")
+corrplot(qc, add = TRUE,type="upper", method = "number",addrect = 2, col = col3(20),tl.col = "black",tl.cex=2,
+         p.mat = res$p, sig.level = 0.05, insig = "blank",diag = FALSE,tl.pos = "n", cl.pos = "n", number.cex = 1.9)
+dev.off()
+
+cor <- read.table("02.Correlation.txt",header = T,sep = "\t") 
+sa <- read.table("03.salience.txt",header = T,sep = "\t")
+
